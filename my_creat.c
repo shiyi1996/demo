@@ -14,12 +14,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <unistd.h>
 
 int main(int argc, char **argv)
 {
     char *filename;
-    int fd;
     int mode=6*8*8+6*8+6;
 
     filename = argv[1];
@@ -30,13 +28,11 @@ int main(int argc, char **argv)
         error(0);
     }
 
-    if(fd = creat(filename, mode) == -1)
+    if(creat(filename, mode) == -1)
     {
         printf("打开或创建文件失败\n");
         error(1);
     }
-
-    close(fd);
 
     return 0;
 }
