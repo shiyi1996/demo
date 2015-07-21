@@ -145,7 +145,7 @@ void display_attribute( struct stat buf, char *name)
     buf_time[ strlen(buf_time)-1 ] = '\0';
     printf(" %s",buf_time);//打印文件修改日期
 
-    printf("  %s ",name);//打印文件名
+    printf("  %s\n",name);//打印文件名
 
 }
 
