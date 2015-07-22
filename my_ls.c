@@ -196,6 +196,15 @@ int display_dir(int flag, char *path)
         printf("error : opendir\n");
         exit(1);
     }
+	
+	if(path[len-1]!='/')
+	{
+		path[len]='/';
+		path[len+1] ='\0';
+	}
+	
+	len = strlen(path);
+
 	i=0;
     while( (buf = readdir(dir)) != NULL )
     {
@@ -275,6 +284,25 @@ int display( int flag, char *path)
         case PARAM_A | PARAM_L:
             display_attribute( buf, name );
             break;
+        case PARAM_R:
+            if( name[0] != '.')
+            {
+                display_single( name );
+            }
+            break;
+        case PARAM_A | PARAM_R:
+            display_single( name );
+            break;
+        case PARAM_L | PARAM_R:
+            if( name[0] != '.')
+            {
+                display_attribute( buf,name );
+            }
+            break;
+        case PARAM_A | PARAM_L | PARAM_R:
+            display_attribute( buf, name );
+            break;
+
     }
 }
 
@@ -297,8 +325,8 @@ int display_r(int flag,char *path)
 		if( (flag & PARAM_A) || buf->d_name[0]!='.' )
 		{
 
-			if( stat(buf->d_name, &p) == -1 )
-			{			
+			if (buf->d_type == DT_DIR)
+			{
 				len = strlen(path);
 				strncpy(file_name[file_num], path, len);
 				if(file_name[file_num][len -1]!='/')
@@ -309,7 +337,8 @@ int display_r(int flag,char *path)
 				}
 				file_name[file_num][len]='\0';
 				strcat(file_name[file_num], buf->d_name);
-				file_name[file_num++][strlen(buf->d_name) + len] = '\0';			
+				file_name[file_num++][strlen(buf->d_name) + len] = '\0';	
+	
 			}
 		}	
 	}
@@ -428,9 +457,9 @@ int main( int argc, char *argv[] )
 		while( i < file_num )
 		{
 			printf("%s:\n",file_name[i]);
-			display_dir(flag_param,path);
+			display_dir(flag_param,file_name[i]);
 			display_r(flag_param,file_name[i++]);
-			printf("\n");
+			printf("\n\n");
 		}
     }
     puts("");
