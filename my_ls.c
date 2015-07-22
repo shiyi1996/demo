@@ -26,14 +26,17 @@
 #define PARAM_R 4 //-r
 #define MAXROELEN 80 //一行最大显示长度
 
-int maxlen ;
+int maxlen;
 int leave = MAXROELEN;
 
-void quick_sort(int l, int r, int (*num)[256], char name[][50])
+int file_i = 0;
+int file_num = 0;
+char file_name[1000][100];
+
+void quick_sort(int l, int r, int num[], char name[][50])
 {
     int i,j,pos;
-
-    pos = (*num)[l];
+    pos = num[l];
     i = l;
     j = r;
 
@@ -44,28 +47,26 @@ void quick_sort(int l, int r, int (*num)[256], char name[][50])
 
     while( i<j )
     {
-        while( strcmp(name[(*num)[j]], name[pos]) > 0 && i<j)
+        while( strcmp(name[num[j]], name[pos]) > 0 && i<j)
         {
             j--;
         }
         if(i<j)
         {
-            (*num)[i] = (*num)[j];
-			j--;
+            num[i] = num[j];
         }
 
-        while( strcmp(name[(*num)[i]], name[pos]) < 0 && i<j )
+        while( strcmp(name[num[i]], name[pos]) < 0 && i<j )
         {
             i++;
         }
         if(i<j)
         {
-            (*num)[j] = (*num)[i];
-			i++;
+            num[j] = num[i];
         }
     }
 
-    (*num)[i] = pos;
+    num[i] = pos;
 
     quick_sort(i+1, r, num, name);
     quick_sort(l, i-1, num, name);
@@ -132,14 +133,14 @@ void display_attribute( struct stat buf, char *name)
 
     }
 
-    printf(" %2d ",buf.st_nlink);//打印文件硬链接数量
+    printf(" %2d ",(int)buf.st_nlink);//打印文件硬链接数量
 
     pwd = getpwuid( buf.st_uid );
     grp = getgrgid( buf.st_gid );
     printf("%-8s", pwd->pw_name);//打印文件所有者
     printf("%-8s", grp->gr_name);//打印文件所属组
 
-    printf("%-6d",buf.st_size);//打印文件大小
+    printf("%-6d",(int)buf.st_size);//打印文件大小
 
     strcpy( buf_time, ctime(&buf.st_mtime) );    	
     buf_time[ strlen(buf_time)-1 ] = '\0';
@@ -159,21 +160,28 @@ void display_single( char *name )
         printf("\n");
         leave = MAXROELEN;
     }
-
-    printf("%s ",name);
+    printf("%s",name);
 	len = maxlen - strlen(name);
-    while(len--)
-    {
-        printf(" ");
-    }
-	
-	printf(" ");
-    leave -= maxlen + 2;
+
+	if(len>leave)
+	{
+		printf("\n");
+		leave = MAXROELEN;
+	}
+	else
+	{
+	    while(len>0)
+	    {
+	        printf(" ");
+	        len--;
+		}
+    	leave -= maxlen + 2;
+  	}
 
 }
 
 //对目录中的文件操作
-void display_dir(int flag, char *path)
+int display_dir(int flag, char *path)
 {
 	int i,j,len = strlen(path);
     DIR *dir;
@@ -188,54 +196,43 @@ void display_dir(int flag, char *path)
         printf("error : opendir\n");
         exit(1);
     }
-
+	i=0;
     while( (buf = readdir(dir)) != NULL )
     {
-        if( maxlen < strlen(buf->d_name) )
-        {
-            maxlen = strlen(buf->d_name);
-        }
-        count++;
+		if( (flag & PARAM_A) || buf->d_name[0]!='.' )
+		{
+        	if( maxlen < strlen(buf->d_name) )
+        	{
+           		maxlen = strlen(buf->d_name);
+        	}
+
+			strncpy(filename[i], path, len);
+			filename[i][len] = '\0';
+			strcat(filename[i], buf->d_name);
+			filename[i][strlen(buf->d_name) + len] = '\0';
+		
+			num[i]=i;
+        	i++;
+		}
     }
     closedir(dir);
     
-    if(count > 256)
+    if(i > 256)
     {
         printf("error： filenum > 256\n");
         exit(1);
     }
     
-    dir = opendir(path);
+	quick_sort(0, i-1, num, filename);
 
-    for(i=0; i<count; i++)
-    {
-        buf = readdir(dir);
-        if(buf == NULL)
-    	{
-        	printf("error : readdir\n");
-        	exit(1);
-    	}
-
-		strncpy(filename[i], path, len);
-		filename[i][len] = '\0';
-		strcat(filename[i], buf->d_name);
-		filename[i][strlen(buf->d_name) + len] = '\0';
-		
-		num[i]=i;
-    }
-
-	quick_sort(0, count-1, &num, filename);
-
-	for(i=0; i<count; i++)
+	for(j=0; j<i; j++)
 	{
-		display(flag, filename[ num[i]]);
+		display(flag, filename[ num[j]]);
 	}
 	
-	closedir(dir);
-
 }   
 
-void display( int flag, char *path)
+int display( int flag, char *path)
 {
     int i,j;
     struct stat buf;
@@ -243,7 +240,7 @@ void display( int flag, char *path)
 
     for(i=0,j=0; i<strlen(path); i++)
     {
-        if(path[i] == '/')
+        if(path[i] == '/' && i!=strlen(path)-1)
         {
             j=0;
             continue;
@@ -278,10 +275,47 @@ void display( int flag, char *path)
         case PARAM_A | PARAM_L:
             display_attribute( buf, name );
             break;
-        case PARAM_R:
-            break;
-	
     }
+}
+
+int display_r(int flag,char *path)
+{
+	struct stat p;
+	struct dirent *buf;
+	DIR *dir;
+	int len;
+
+    dir = opendir(path);
+    if(dir == NULL)
+    {
+        printf("error : opls -Rendir\n");
+        exit(1);
+    }
+
+    while( (buf = readdir(dir)) != NULL )
+    {
+		if( (flag & PARAM_A) || buf->d_name[0]!='.' )
+		{
+
+			if( stat(buf->d_name, &p) == -1 )
+			{			
+				len = strlen(path);
+				strncpy(file_name[file_num], path, len);
+				if(file_name[file_num][len -1]!='/')
+				{
+					strcpy(file_name[file_num], buf->d_name);
+					file_name[file_num][len ]='/';
+					len ++;
+				}
+				file_name[file_num][len]='\0';
+				strcat(file_name[file_num], buf->d_name);
+				file_name[file_num++][strlen(buf->d_name) + len] = '\0';			
+			}
+		}	
+	}
+		//path[strlen(path)-1] = '\0';
+
+
 }
 
 int main( int argc, char *argv[] )
@@ -317,7 +351,7 @@ int main( int argc, char *argv[] )
         {
             flag_param |= PARAM_A;
         }
-        else if( cmd[i] == 'r')
+        else if( cmd[i] == 'R')
         {
             flag_param |= PARAM_R;
         }
@@ -333,7 +367,15 @@ int main( int argc, char *argv[] )
     {
         strcpy( path, "./");
         path[2] = '\0';
-        display_dir( flag_param, path);
+        if( flag_param & PARAM_R)
+        {
+            strcpy(file_name[file_num++],"./");
+            file_name[file_num-1][3]='\0';
+        }
+        else
+        {
+            display_dir( flag_param, path);
+        }
     }
     else
     {
@@ -366,12 +408,32 @@ int main( int argc, char *argv[] )
                         path[strlen(argv[i])] = '\0';
                     }
 
-					display_dir( flag_param, path );
+        			if( flag_param & PARAM_R)
+        			{
+            			strcpy(file_name[file_num++],path);
+						file_name[file_num-1][strlen(path)] = '\0';
+        			}
+        			else
+        			{
+         			    display_dir( flag_param, path);
+        			}
                 }
             }
             i++;
         }
     }
+    if( flag_param & PARAM_R)
+    {
+		i = 0;
+		while( i < file_num )
+		{
+			printf("%s:\n",file_name[i]);
+			display_dir(flag_param,path);
+			display_r(flag_param,file_name[i++]);
+			printf("\n");
+		}
+    }
     puts("");
     return 0;
 }
+
