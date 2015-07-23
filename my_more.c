@@ -14,30 +14,31 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
+#include <fcntl.h>
 #define PAGENUM 10
 
-void do_more(FILE *fp);
-int see_more(FILE *fp, int sum, int now);
+void do_more(int fd);
+int see_more(FILE  *fp, int sum, int now);
 
 int main( int argc, char **argv )
 {
-    FILE *fp;
+    int fd;
     if( argc == 1 )
     {
-        do_more( stdin );
+        return 0;
     }
     else
     {
-        while( argc--)
+        while( argc-->1 )
         {
-            if( (fp = fopen(*++argv,"r")) != NULL )
+            if( (fd = open(*++argv,O_RDONLY)) != -1 )
             {   
-                do_more(fp);
-                fclose(fp);
+                do_more(fd);
+                close(fd);
             }
             else
             {
+                printf("Error: can't open file\n");
                 exit(1);
             }
         }
@@ -45,22 +46,19 @@ int main( int argc, char **argv )
     return 0;
 }
 
-void do_more(FILE *fp)
+void do_more(int fd)
 {
-    FILE *fp_tty;
-    char line[512];
+    char str[256];
+    char *p = str;
     int page_num = 0;
     int rel;
-    int fd;
     int page_now;
     int page_sum;
+    FILE *fp_tty;
 
-    fd = fileno( fp );
     rel = lseek(fd,0,SEEK_END);
-    printf("%d\n",rel);
     page_sum = lseek(fd,0,SEEK_CUR);
     rel = lseek(fd,0,SEEK_SET);
-    printf("%d\n",rel);
 
 
     fp_tty = fopen("/dev/tty","r");
@@ -69,14 +67,22 @@ void do_more(FILE *fp)
         exit(1);
     }
 
-    while( fgets(line,512,fp) )
+    while( page_now<page_sum )
     {
+        while(read(fd,str,1))
+        {
+            if(str[0] =='\n')
+            {
+                printf("\n");
+                break;
+            }
+            printf("%c",str[0]);
+        }
         page_now = lseek(fd, 0, SEEK_CUR);
-        printf("%d\n",page_now);
-        printf("*****%d\n",fseek(fp,0,SEEK_CUR));
         if( page_num == PAGENUM )
         {
             rel = see_more(fp_tty, page_sum, page_now);
+            printf("\033[1A\033[K");
             if( rel == 0 )
             {
                 break;
@@ -86,11 +92,6 @@ void do_more(FILE *fp)
                 page_num -= rel;
             }
         }
-
-        if( fputs( line, stdout ) == EOF)
-        {
-            exit(2);
-        }
         page_num++;
     }
 }
@@ -98,18 +99,23 @@ void do_more(FILE *fp)
 int see_more(FILE *fp, int sum,int now)
 {
     int rel;
-    printf("now %d, sum %d",now , sum);
-    printf("\033[7m --更多-- %.2f%% \033[0m",(sum - now)*100.0/sum);
+    printf("\033[7m --更多-- %.2f%% \033[0m",now*100.0/sum);
 
     while( (rel = getc(fp)) != EOF )
     {
         if(rel == 'q')
+        {
             return 0;
+		}
         if(rel == ' ')
-            return PAGENUM;
+        {
+	    	return PAGENUM;
+		}
         if(rel == '\n')
-            return 1;
+        {   
+			return 1;
+		}
     }
-
+    
     return 0;
 }
