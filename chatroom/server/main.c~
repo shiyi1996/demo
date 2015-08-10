@@ -77,7 +77,7 @@ int send_to_more(int conn_fd, new_t new)
 	struct Pthread *data;
 
 	new.type = 4;
-	new.flag = 1;
+	new.flag = 9;
 	if(find_group(new.grp.grp_name,&grp) == 0)
 	{
 		new.flag = 0;
@@ -166,7 +166,7 @@ void *def(struct Pthread *data)
 			send_to_one(conn_fd,data->new);
 			break;
 		case 4://群发
-			data->new.flag = 1;
+			data->new.flag = 9;
 
 			send_to_more(conn_fd, data->new);
 			break;

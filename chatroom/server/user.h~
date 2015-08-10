@@ -58,9 +58,6 @@ int del_friend(char user[],char fri[]);
 //创建id号
 int make_id();
 
-//查找讨论组
-int find_group(char name[],group_t *buf);
-
 //创建讨论组
 int add_group(group_t *buf);
 

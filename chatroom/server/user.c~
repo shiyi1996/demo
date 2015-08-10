@@ -391,8 +391,8 @@ int look_group(new_t *new)
     
     while(read(fd, &grp, sizeof(group_t)))
     {
-	    flag = 1;
-    	/*for(i=0;i<grp.num;i++)
+	    /*flag = 1;
+    	for(i=0;i<grp.num;i++)
     	{
     		if(strcmp(new->user.name, grp.name[i]) == 0)
     		{

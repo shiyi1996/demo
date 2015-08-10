@@ -27,13 +27,23 @@ typedef struct User
         char pass[20];
 }user_t;
 
+typedef struct Group
+{
+	int num;
+	char grp_name[20];
+	char make[20];
+	char name[20][20];
+}group_t;
+
 typedef struct News
 {
     int type;
-    char buf[200];
+    int flag;
+    char buf[500];
 	char from_name[20];
 	char to_name[20]; 
 	user_t user;
+	group_t grp;
 }new_t;
 
 void* def(void* conn)
@@ -60,7 +70,7 @@ void* def(void* conn)
 		switch(new.type)
 		{
 			case 3:
-				if(strcmp(new.from_name, user_name) == 0)
+				if(new.flag == 0)
 				{
 					printf("！！！ %s 不存在，消息发送失败\n",new.to_name);
 				}
@@ -70,27 +80,71 @@ void* def(void* conn)
 				}
 				break;
 			case 4:
+				if(new.flag==1)
+				{
+					printf("[%s] %s : %s\n",new.grp.grp_name,new.user.name, new.buf);
+				}
+				else
+				{
+					printf("讨论组 %s 不存在\n",new.grp.grp_name);
+				}
 				break;
 			case 5:
+				
+				if(new.buf[0]!='*' && new.buf[0]!='#')
+				{
+					printf("暂无好友，快去添加吧\n");
+				}
+				else
+				{
+					printf("\033[1;33m在线\t\033[0m离线\n");
+					ret = 0;
+					while(new.buf[ret]!='\0')
+					{
+						if(new.buf[ret] == '*')
+						{
+							ret++;
+							while(new.buf[ret]!='*' && new.buf[ret]!='#' && new.buf[ret]!='\0')
+							{
+								printf("\033[1;33m%c\033[0m",new.buf[ret++]);
+							}
+							printf("\n");
+						}
+						else
+						{
+							ret++;
+							while(new.buf[ret]!='*' && new.buf[ret]!='#' && new.buf[ret]!='\0')
+							{
+								printf("%c",new.buf[ret++]);
+							}
+							printf("\n");
+						}
+					}
+				}
 				break;
 			case 6:
+				printf("%s\n",new.buf);
 				break;
 			case 7:
+				printf("%s\n",new.buf);
 				break;
 			default:
 				break;
 		}
 	}
+	
+	pthread_exit(0);
 	return NULL;
 }
 
 //创建套接字并连接服务端
 int main()
 {
-	int conn_fd;
+	int conn_fd, i;
 	new_t new;
     struct sockaddr_in serv_addr;
     pthread_t thread;
+    int flag;
     
     memset(&serv_addr,0,sizeof(struct sockaddr_in));
     serv_addr.sin_family = AF_INET;
@@ -151,7 +205,8 @@ int main()
 
 	while(1)
 	{
-		printf("<3>私聊 <4>群发 <5>查询在线用户 <0>退出\n");
+		memset(&new, 0, sizeof(new_t));
+		printf("<3>私聊 <4>群聊 <5>查看好友 <6>好友管理 <7>讨论组管理 <8>文件传输 <0>退出\n");
 		scanf("%d",&new.type);
 		switch(new.type)
 		{
@@ -164,11 +219,76 @@ int main()
 				printf("输入消息内容：");
 				scanf("%s",new.buf);
 				send(conn_fd, &new, sizeof(new_t), 0);
+				break;
 			case 4:
+				strcpy(new.user.name,user_name);
+				printf("输入群组名：");
+				scanf("%s",new.grp.grp_name);
+				printf("输入消息内容：");
+				scanf("%s",new.buf);
+				send(conn_fd, &new, sizeof(new_t), 0);				
+				break;
+				
+			case 5:
+				strcpy(new.user.name, user_name);
+				send(conn_fd, &new, sizeof(new_t), 0);
+				break;
+					
+			case 6:
+				do
+				{
+					printf("<1> 添加好友 <2> 删除好友\n");
+					scanf("%d",&flag);
+				}
+				while(flag!=1 && flag!=2);
+				printf("输入好友名：");
+				strcpy(new.user.name,user_name);
+				if(flag == 1)
+				{
+					scanf("%s",new.to_name);
+				}
+				else
+				{
+					scanf("%s",new.from_name);
+				}
+				send(conn_fd, &new, sizeof(new_t), 0);
+				break;
+			
+			case 7:
+				strcpy(new.user.name,user_name);
+				do
+				{
+					printf("<1>查看讨论组 <2>创建讨论组 <3>退出讨论组\n");
+					scanf("%d",&new.flag);
+				}
+				while(new.flag!=1 && new.flag!=2 && new.flag!=3);
+				if(new.flag!=1)
+				{
+					printf("输入讨论组名称：");
+					scanf("%s", new.grp.grp_name);
+				}
+				strcpy(new.user.name,user_name);
+				if(new.flag == 2)
+				{
+					strcpy(new.grp.make, user_name);
+					printf("输入初始人数：");
+					
+					scanf("%d",&new.grp.num);
+					printf("依次输入群成员名称\n");
+					for(i=0;i<new.grp.num;i++)
+					{
+						printf("%d:",i+1);
+						scanf("%s", new.grp.name[i]);
+					}
+				}
+				send(conn_fd, &new, sizeof(new_t), 0);
 				
 				break;
-			case 5:
+				
+			case 8:
+				
 				break;
+				
 			default:
 				break;
 		}
@@ -176,5 +296,3 @@ int main()
 	
 	return 0;	
 }
-
-
