@@ -8,31 +8,52 @@
 #ifndef _USER_H
 #define _USER_H
 
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+#include<errno.h>
+#include<sys/socket.h>
+#include<sys/epoll.h>
+#include<sys/stat.h>
+#include<fcntl.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<pthread.h>
+#include<time.h>
+
 typedef struct User
 {
-        int id;
-        char name[20];
-        char pass[20];
+    int id;
+    char name[20];
+    char pass[20];
 }user_t;
 
-typedef struct Group
+typedef struct Grp
 {
-	int num;
-	char grp_name[20];
+	int num;//群人数
 	char make[20];
-	char name[20][20];
-}group_t;
+	char name[20];
+	char people[20][20];
+}grp_t;
 
 typedef struct News
 {
-    int type;
-    int flag;
-    char buf[500];
-	char from_name[20];
-	char to_name[20];
-	user_t user;
-	group_t grp;
+        int type;
+        int flag;
+        int conn_fd;
+        char buf[500];
+        char from[20];
+        char to[20]; 
+        time_t now_time;
+        user_t user;
+		grp_t grp;
+		char file_send[20];
+		char file_recv[20];
+		struct stat file;
 }new_t;
+
+//保存系统日志
+int save_log(char test[]);
 
 //根据用户名查找用户
 int find_user_id(char name[], user_t *buf);
@@ -59,15 +80,15 @@ int del_friend(char user[],char fri[]);
 int make_id();
 
 //查找讨论组
-int find_group(char name[],group_t *buf);
+int find_group(char name[],grp_t *buf);
 
 //创建讨论组
-int add_group(group_t *buf);
+int add_group(grp_t *buf);
 
 //查看讨论组
 int look_group(new_t *new);
 
 //删除讨论组
-int del_group(char grp_name[], char user_name[]);
+int del_group(new_t *new);
 
 #endif

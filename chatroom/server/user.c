@@ -16,15 +16,41 @@
 
 #define USER_FILE "user.txt"
 #define GRP_FILE "group.txt"
+#define LOG_FILE "log.txt"
 
 extern int f[2001];
+
+//保存系统日志
+int save_log(char test[])
+{
+	int fd;
+	
+	fd = open(LOG_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666);
+	if(fd == -1)
+	{
+		perror("open");
+	}
+
+	int i=0;
+	
+	while(test[i]!='\0')
+	{
+		write(fd, &test[i++], 1);
+	}
+
+    close(fd);
+    return 1;
+}
+
+
 
 //根据用户名查找id，若存在返回id，否则，返回0
 int find_user_id(char name[], user_t *buf)
 {
     int fd;
 
-    fd = open(USER_FILE, O_RDONLY);
+    fd = open(USER_FILE, O_RDONLY | O_CREAT, 0666);
+
 
     if(fd == -1)
     {
@@ -78,7 +104,7 @@ int add_user(user_t *buf)
 
     buf->id = make_id();
 
-    fd = open(USER_FILE, O_WRONLY | O_CREAT | O_APPEND, 0777);
+    fd = open(USER_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666);
 
     if(fd == -1)
     {
@@ -147,7 +173,7 @@ int add_friend(char user[],char fri[])
 		return 0;
 	}
 
-    fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0777);
+    fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0666);
 
     if(fd == -1)
     {
@@ -179,7 +205,7 @@ int del_friend(char user[],char fri[])
 		exit(1);
 	}
 	
-	fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0777);
+	fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0666);
 	if(fd == -1)
 	{
 		perror("open");
@@ -225,18 +251,24 @@ int look_firend(char user[], char str[])
     }
     
     str[0]='\0';
-    
+    int i=0;
     while(read(fd, &buf, sizeof(user_t)))
     {
+    	i++;
     	if(f[buf.id])
     	{
-			strcat(str,"*");
+			strcat(str,"\033[1;33m");
 			strcat(str,buf.name);
+			strcat(str,"\033[0m\t");
     	}
     	else
     	{
-			strcat(str,"#");
 			strcat(str,buf.name);
+			strcat(str,"\t");
+    	}
+    	if(i%4==0)
+    	{
+    		strcat(str,"\n");
     	}
     }
 	
@@ -247,7 +279,7 @@ int look_firend(char user[], char str[])
 	return 1;
 }
 
-int find_group(char name[],group_t *buf)
+int find_group(char name[],grp_t *buf)
 {
     int fd;
 
@@ -258,9 +290,9 @@ int find_group(char name[],group_t *buf)
         perror("open");
         return 0;
     }
-    while(read(fd, buf, sizeof(group_t)))
+    while(read(fd, buf, sizeof(grp_t)))
     {
-        if(strcmp(buf->grp_name, name) == 0)
+        if(strcmp(buf->name, name) == 0)
         {
             close(fd);
             return 1;
@@ -273,17 +305,17 @@ int find_group(char name[],group_t *buf)
 		
 }
 
-int add_group(group_t *buf)
+int add_group(grp_t *buf)
 {
     int fd;
-	group_t grp;
+	grp_t grp;
 
-	if(find_group(buf->grp_name, &grp)==1)
+	if(find_group(buf->name, &grp)==1)
 	{
 		return 0;
 	}
 
-    fd = open(GRP_FILE, O_WRONLY | O_CREAT | O_APPEND, 0777);
+    fd = open(GRP_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666);
 
     if(fd == -1)
     {
@@ -291,7 +323,7 @@ int add_group(group_t *buf)
         return 0;
     }
     
-    if(write(fd,buf,sizeof(group_t)) == -1)
+    if(write(fd,buf,sizeof(grp_t)) == -1)
     {
         perror("write");
         return 0;
@@ -302,15 +334,15 @@ int add_group(group_t *buf)
 	
 }
 
-int del_group(char grp_name[], char user_name[])
+int del_group(new_t *new)
 {
-	group_t grp;
+	grp_t grp;
 	char temp_file[20] = "temp.txt";
 	int fd;
 	int temp_fd;
 	int flag=0, i;
 	
-	if(find_group(grp_name, &grp)==0)
+	if(find_group(new->grp.name, &new->grp) == 0)
 	{
 		return 0;
 	}
@@ -320,7 +352,7 @@ int del_group(char grp_name[], char user_name[])
 		exit(1);
 	}
 	
-	fd = open(GRP_FILE, O_WRONLY | O_CREAT | O_APPEND, 0777);
+	fd = open(GRP_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666);
 	if(fd == -1)
 	{
 		perror("open");
@@ -332,20 +364,19 @@ int del_group(char grp_name[], char user_name[])
     {
         perror("open");
     }
-	while(read(temp_fd,&grp,sizeof(group_t)))
+	while(read(temp_fd,&grp,sizeof(grp_t)))
 	{
-		if(strcmp(grp_name,grp.grp_name) == 0)
+		if(strcmp(new->grp.name, grp.name) == 0)
 		{
-			if(strcmp(grp.make, user_name) == 0)
+			if(strcmp(grp.make, new->from) == 0)
 			{
 				flag = 1;//解散群
-				
 			}
 			else
 			{
 				for(i=0;i<grp.num;i++)
 				{
-					if(strcmp(grp.name[i],user_name) == 0)
+					if(strcmp(grp.people[i],new->from) == 0)
 					{
 						break;
 					}	
@@ -354,7 +385,7 @@ int del_group(char grp_name[], char user_name[])
 				{
 					for(;i<grp.num-1;i++)
 					{
-						strcpy(grp.name[i],grp.name[i+1]);
+						strcpy(grp.people[i],grp.people[i+1]);
 					}
 					grp.num--;
 					flag = 3;//退出
@@ -364,12 +395,12 @@ int del_group(char grp_name[], char user_name[])
 					flag = 2;//并未加入该群
 					
 				}
-				write(fd, &grp, sizeof(group_t));
+				write(fd, &grp, sizeof(grp_t));
 			}
 		}
 		else
 		{
-			write(fd, &grp, sizeof(group_t));	
+			write(fd, &grp, sizeof(grp_t));	
 		}
 	}
 	remove(temp_file);
@@ -380,7 +411,7 @@ int del_group(char grp_name[], char user_name[])
 int look_group(new_t *new)
 {
 	int fd, i, flag=0;
-	group_t grp;
+	grp_t grp;
 	
     fd = open(GRP_FILE, O_RDONLY);
 
@@ -388,21 +419,31 @@ int look_group(new_t *new)
     {
         return 0;
     }
-    
-    while(read(fd, &grp, sizeof(group_t)))
+
+    while(read(fd, &grp, sizeof(grp_t)))
     {
-	    flag = 1;
-    	/*for(i=0;i<grp.num;i++)
+    	flag = 0;
+    	for(i=0;i<grp.num;i++)
     	{
-    		if(strcmp(new->user.name, grp.name[i]) == 0)
+    		if(strcmp(new->from, grp.people[i]) == 0)
     		{
     			flag = 1;
     			break;
     		}
     	}
-    	if(i!=grp.num)
-    	{*/
-    		strcat(new->buf, grp.grp_name);
+    	if(strcmp(new->from, grp.make) == 0)
+    	{
+    		flag = 1;
+    	}
+    	
+    	if(strcmp(new->grp.name, "all") == 0)
+    	{
+    		flag = 1;
+    	}
+    	
+    	if(flag == 1)
+    	{
+    		strcat(new->buf, grp.name);
     		strcat(new->buf, " 创建者：");
     		strcat(new->buf, grp.make);
     		strcat(new->buf,"\n");
@@ -413,11 +454,11 @@ int look_group(new_t *new)
 			}
     		for(i=0;i<grp.num;i++)
     		{
-	    		strcat(new->buf, grp.name[i]);
+	    		strcat(new->buf, grp.people[i]);
 	    		strcat(new->buf, " ");
     		}
     		strcat(new->buf, "\n\n");
-    
+    	}
     }
 	
 	close(fd);
@@ -425,7 +466,7 @@ int look_group(new_t *new)
 	{
 		strcpy(new->buf, "暂无讨论组，快去创建吧\n");
 	}
-	puts(new->buf);
+
 	return flag;
 }
 
