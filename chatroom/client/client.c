@@ -80,7 +80,7 @@ void def(int *conn)
 					}
 					else
 					{
-						printf("%s[%s]请求添加您为好友,若同意请输入accept friend %s\n\n",ctime(&new.now_time),new.from, new.from);
+						printf("%s[%s]请求添加您为好友,若同意请输入/@apt %s\n\n",ctime(&new.now_time),new.from, new.from);
 					}
 				}
 				else if(new.flag == 1)
@@ -137,7 +137,7 @@ void def(int *conn)
 			case 7://文件传输
 				if(new.flag == 0)
 				{
-					printf("%s[%s]请求向您发送文件[%s],若同意请输入 accept %s %s\n\n",ctime(&new.now_time),new.from, new.file_send, new.from, new.file_send);
+					printf("%s[%s]请求向您发送文件[%s],若同意请输入 /$apt %s %s\n\n",ctime(&new.now_time),new.from, new.file_send, new.from, new.file_send);
 				}
 				else if(new.flag == 1)
 				{				
@@ -155,14 +155,17 @@ void def(int *conn)
 				}
 				else if(new.flag == 2)
 				{
-
 					file_fd = open(new.file_recv, O_WRONLY | O_CREAT | O_APPEND, 0666);
-					int i=0;
-					while(new.buf[i]!='\0')
+	
+					if(new.grp.num == -1)
 					{
-						write(file_fd, &new.buf[i++], 1);
+						printf("[提醒]文件%s接收成功\n",new.file_recv);
 					}
-					//printf("[提醒]文件%s接收: \n",new.file_recv);
+					else
+					{
+						write(file_fd, new.buf, new.file_num);
+					}
+										
 					close(file_fd);
 				}
 
@@ -250,7 +253,6 @@ int main()
 			default:
 				break;
 		}
-		
 		//登陆成功后跳出循环
 		if(strcmp(new.buf, "登陆成功") == 0)
 		{				
@@ -262,111 +264,109 @@ int main()
 	//创建线程用于接受服务端消息
 	pthread_create(&thread, NULL, (void*)def, &conn_fd);
 
-	char cmd[20],type[20],buf[500];
+	char buf[500],cmd[10][500];
+	int num;
+	
+	print();//显示提示界面
 
 	while(1)
 	{ //输入解析
 
-		print();
-		memset(&new, 0 ,sizeof(new_t));
-		scanf("%s",cmd);
-		if(strcmp(cmd, "quit") == 0)
-		{
-			printf("再见～\n");
-			exit(1);
-		}
-		scanf("%s",type);
 
-		scanf("%s",buf);
+		memset(&new, 0 ,sizeof(new_t));
+
+		if(get_cmd(buf) == 0)
+		{
+			printf("[提醒]输入为空，请重新输入\n");
+			continue;
+		}
+		
+		if(buf[0]=='/')
+		{
+			memset(cmd, 0 ,sizeof(cmd));
+			num = made_cmd(cmd, buf);
+		}
+		else
+		{
+			if(cmd[0][2]!='c')
+			{
+				memset(cmd, 0 ,sizeof(cmd));
+			}
+		}
 		
 		new.conn_fd = conn_fd;
 		time(&new.now_time);
-		
-		if(strcmp(cmd, "friend") == 0)//私聊
+		if(strcmp(cmd[0], "/@call") == 0 && num == 2)//私聊
 		{
 			new.type = 3;
 			strcpy(new.from, user_name);
-			strcpy(new.to, type);
+			strcpy(new.to, cmd[1]);
 			strcpy(new.buf, buf);
 			save_chat(new,new.to);
 			send(conn_fd, &new, sizeof(new_t), 0);
 		}
-		else if(strcmp(cmd, "group") == 0)//群聊
+		else if(strcmp(cmd[0], "/#call") == 0 && num == 2)//群聊
 		{
 			new.type = 4;
 			strcpy(new.from, user_name);
-			strcpy(new.grp.name, type);
+			strcpy(new.grp.name, cmd[1]);
 			strcpy(new.buf, buf);
 			//save_chat(new,new.to);
 			send(conn_fd, &new, sizeof(new_t), 0);
 				
 		}
-		else if(strcmp(cmd, "add") == 0)
+		else if(strcmp(cmd[0], "/@add") == 0 && num == 2)
 		{
-			if(strcmp(type, "friend") == 0)//添加好友
+			new.type = 5;
+			new.flag = 0;
+			strcpy(new.from, user_name);
+			strcpy(new.to, cmd[1]);
+			send(conn_fd, &new, sizeof(new_t), 0);
+		}	
+		else if(strcmp(cmd[0], "/#add") == 0 && num == 2)//创建群组
+		{
+			new.type = 6;
+			new.flag = 1;
+			strcpy(new.from, user_name);
+			strcpy(new.grp.make, user_name);
+			strcpy(new.grp.name, cmd[1]);
+			printf("请输入讨论组成员人数：");
+			do
 			{
-				new.type = 5;
-				new.flag = 0;
-				strcpy(new.from, user_name);
-				strcpy(new.to, buf);
-				send(conn_fd, &new, sizeof(new_t), 0);
-			}
-			else if(strcmp(type, "group") == 0)//创建群组
+				scanf("%d",&new.grp.num);
+				while(getchar()!='\n');
+			}while(new.grp.num<0);
+			int i;
+			for(i=0;i<new.grp.num;i++)
 			{
-				new.type = 6;
-				new.flag = 1;
-				strcpy(new.from, user_name);
-				strcpy(new.grp.make, user_name);
-				strcpy(new.grp.name, buf);
-				printf("请输入讨论组成员人数：");
-				do
-				{
-					scanf("%d",&new.grp.num);
-				}while(new.grp.num<0);
-				int i;
-				for(i=0;i<new.grp.num;i++)
-				{
-					printf("输入成员%d：",i+1);
-					scanf("%s",new.grp.people[i]);
-				}						
-				send(conn_fd, &new, sizeof(new_t), 0);		
-			}
-			else
-			{
-				printf("参数不合法\n");
-			}				
-
+				printf("输入成员%d：",i+1);
+				scanf("%s",new.grp.people[i]);
+				while(getchar()!='\n');
+			}						
+			puts(new.grp.people[0]);
+			send(conn_fd, &new, sizeof(new_t), 0);		
 		}
-		else if(strcmp(cmd, "del") == 0)
+		else if(strcmp(cmd[0], "/@del") == 0 && num == 2)//删除好友
 		{
-			if(strcmp(type, "friend") == 0)//删除好友
-			{
-				new.type = 5;
-				new.flag = 2;
-				strcpy(new.from, user_name);
-				strcpy(new.to, buf);
-				send(conn_fd, &new, sizeof(new_t), 0);
-			}
-			else if(strcmp(type, "group") == 0)//删除群组
-			{
-				new.type = 6;
-				new.flag = 2;
-				strcpy(new.from, user_name);
-				strcpy(new.grp.name, buf);
-				send(conn_fd, &new, sizeof(new_t), 0);
-			}
-			else
-			{
-				printf("参数不合法\n");
-			}
+			new.type = 5;
+			new.flag = 2;
+			strcpy(new.from, user_name);
+			strcpy(new.to, cmd[1]);
+			send(conn_fd, &new, sizeof(new_t), 0);
 		}
-		else if(strcmp(cmd, "look") == 0)
+		else if(strcmp(cmd[0], "/#del") == 0 && num == 2)//删除群组
 		{
-			if(strcmp(type, "friend") == 0)//查看好友
-			{
-				if(strcmp(buf, "all") != 0)
+			new.type = 6;
+			new.flag = 2;
+			strcpy(new.from, user_name);
+			strcpy(new.grp.name, cmd[1]);
+			send(conn_fd, &new, sizeof(new_t), 0);
+		}
+		else if(strcmp(cmd[0], "/@look") == 0 && num == 2)
+		{
+				if(strcmp(cmd[1], "all") != 0)
 				{
-					printf("参数不合法\n");
+					printf("[提醒]命令不合法，请重新输入\n");
 					continue;
 				}
 				new.type = 5;
@@ -374,87 +374,86 @@ int main()
 				strcpy(new.from, user_name);
 				strcpy(new.to, buf);
 				send(conn_fd, &new, sizeof(new_t), 0);
-			}
-			else if(strcmp(type, "group") == 0)//查看群组
+		}
+		else if(strcmp(cmd[0], "/#look") == 0 && num == 2)//查看群组
+		{
+			if(strcmp(cmd[1], "me") != 0 && strcmp(cmd[1], "all") != 0)
 			{
-				if(strcmp(buf, "me") != 0 && strcmp(buf, "all") != 0)
+				printf("[提醒]命令不合法，请重新输入\n");
+				continue;
+			}
+			new.type = 6;
+			new.flag = 3;
+			strcpy(new.from, user_name);
+			strcpy(new.grp.name, cmd[1]);
+			send(conn_fd, &new, sizeof(new_t), 0);			
+		}
+		else if(strcmp(cmd[0], "/@apt") == 0 && num == 2)//接受好友
+		{			
+			new.type = 5;
+			new.flag = 1;
+			strcpy(new.from, user_name);
+			strcpy(new.to, cmd[1]);
+			send(conn_fd, &new, sizeof(new_t), 0);
+		}
+		else if(strcmp(cmd[0], "/$apt") == 0 && num == 3)//接受文件
+		{
+			struct stat temp;
+			printf("请输入接收后的文件名：");
+			while(1)
+			{
+				scanf("%s",new.file_recv);
+				while(getchar()!='\n');			
+				if(stat(new.file_recv, &temp) == 0)
 				{
-					printf("参数不合法\n");
+					printf("[提醒]%s已存在，请重新指定文件名\n",new.file_recv);
 					continue;
 				}
-				new.type = 6;
-				new.flag = 3;
-				strcpy(new.from, user_name);
-				strcpy(new.grp.name, buf);
-				send(conn_fd, &new, sizeof(new_t), 0);			
-			}
-			else
-			{
-				printf("参数不合法\n");
-			}
-		}
-		else if(strcmp(cmd, "accept") == 0)
-		{
-			if(strcmp(type, "friend") == 0)//接受好友请求
-			{
-				new.type = 5;
-				new.flag = 1;
-				strcpy(new.from, user_name);
-				strcpy(new.to, buf);
-				send(conn_fd, &new, sizeof(new_t), 0);
-			}
-			//if(strcmp(type, "file") == 0)//接受文件
-			else
-			{
-				struct stat temp;
-				printf("请输入接收后的文件名：");
-				while(1)
+				else
 				{
-					scanf("%s",new.file_recv);	
-					
-					if(stat(new.file_recv, &temp) == 0)
-					{
-						printf("[提醒]%s已存在，请重新指定文件名\n",new.file_recv);
-						continue;
-					}
-					else
-					{
-						break;
-					}
+					break;
 				}
-				new.type = 7;
-				new.flag = 1;
-				strcpy(new.from, user_name);
-				strcpy(new.to, type);
-				strcpy(new.file_send, buf);
-				
-				send(conn_fd, &new, sizeof(new_t), 0);
 			}
-			/*else
-			{
-				printf("参数不合法\n");
-			}*/
+			new.type = 7;
+			new.flag = 1;
+			strcpy(new.from, user_name);
+			strcpy(new.to, cmd[1]);
+			strcpy(new.file_send, cmd[2]);
+	
+			send(conn_fd, &new, sizeof(new_t), 0);
 		}
-		else if(strcmp(cmd, "file") == 0)//发送文件
+		else if(strcmp(cmd[0], "/$send") == 0 && num == 3)//发送文件
 		{
-			if(stat(buf, &new.file) == 0)
+			if(stat(cmd[2], &new.file) == 0)
 			{
 				new.type = 7;
 				new.flag = 0;
-				strcpy(new.file_send, buf);
+				strcpy(new.file_send, cmd[2]);
 				strcpy(new.from, user_name);
-				strcpy(new.to, type);
+				strcpy(new.to, cmd[1]);
 				//sprintf("%s");
 				send(conn_fd, &new, sizeof(new_t), 0);
 			}
 			else
 			{
-				printf("该文件不存在\n");
+				printf("[提醒]该文件不存在\n");
 			}
+		}
+		else if(strcmp(cmd[0], "/quit") == 0 && num == 1)//退出
+		{
+			printf("再见～\n");
+			exit(1);
 		}
 		else
 		{
-			printf("命令不合法\n");
+			if(buf[0]!='/')
+			{
+				printf("[提醒]请先输入命令，再做操作\n");	
+			}
+			else
+			{
+				printf("[提醒]命令不合法,请重新输入\n");
+			}
 		}
 	}
 	

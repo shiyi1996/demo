@@ -11,9 +11,14 @@
 //密码接收
 void get_pass(char pass[]);
 
+//获取用户操作
+int get_cmd(char buf[]);
+
+//解析用户操作
+int made_cmd(char cmd[][500], char buf[]);
+
 //文件传输
 int send_file(new_t *new);
-
 
 //保存聊天记录
 int save_chat(new_t new, char filename[]);

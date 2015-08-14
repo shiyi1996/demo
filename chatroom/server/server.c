@@ -68,6 +68,7 @@ int send_to_more(new_t *new)
 	data = (struct News *)malloc(sizeof(new_t));
 	memcpy(data,new,sizeof(new_t));
 	strcpy(data->to,new->grp.make);
+	
 	//printf("==%s %s %s\n",data->to,data->from,data->buf);
 	thread = pthread_create(&thread, NULL, (void*)send_to_one, data);
 	
@@ -94,7 +95,7 @@ void def(struct News *new)
 	switch (new->type)
 	{	
 		case 1://注册
-
+			
 			if(find_user_id(new->user.name, &user) != 0)
 			{
 
@@ -165,7 +166,7 @@ void def(struct News *new)
 			}
 			else
 			{
-				
+			
 				send_to_more(new);
 			}
 			break;

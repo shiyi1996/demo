@@ -17,6 +17,60 @@
 #include<fcntl.h>
 #include"client.h"
 
+//获取用户操作
+int get_cmd(char buf[])
+{	
+	int i;
+	i = 0;
+	while(1)
+	{
+		buf[i] = getchar();
+
+		if(buf[i] == '\n')
+		{
+			buf[i]='\0';
+			i++;
+			break;
+		}
+		else
+		{
+			i++;
+		}
+	}
+	return buf[0]=='\0'? 0 : 1;
+}
+
+//解析用户操作
+int made_cmd(char cmd[][500], char buf[])
+{
+	int i,j,k,len = strlen(buf);
+	j=k=0;
+	for(i=0;i<len;i++)
+	{
+		if(buf[i]==' ')
+		{
+			if(k>0)
+			{
+				cmd[j][k]='\0';
+				k=0;
+				j++;
+			}
+		}
+		else
+		{
+			cmd[j][k]=buf[i];
+			k++;
+		}
+	}
+
+	if(k!=0)
+	{
+		cmd[j][k]='\0';
+		j++;
+	}
+	return j;	
+}
+
 void get_pass(char pass[])
 {
 	int i=0;
@@ -54,17 +108,19 @@ int send_file(new_t *new)
 	int fd;
 
     fd = open(new->file_send, O_RDONLY | O_CREAT, 0666);
-
-    while(read(fd, new->buf, 400))
+	new->grp.num=0;
+    while(new->file_num = read(fd, new->buf, 100000))
     {
 
 		if(send(new->conn_fd, new, sizeof(new_t), 0) < 0)
 		{
 			perror("send");
 		}
-		usleep(100000);
+		usleep(50000);
 		memset(new->buf, 0, sizeof(new->buf));       
     }
+	new->grp.num=-1;
+    send(new->conn_fd, new, sizeof(new_t), 0);
     printf("[提醒]文件%s发送成功\n",new->file_send);
     close(fd);
 	free(new);
@@ -102,19 +158,20 @@ int save_chat(new_t new,char filename[])
 //输出提示信息
 void print()
 {
-	printf("**********************************************************\n");
-	printf("****      friend XXX NNN <---> 向好友XXX私信NNN       ****\n");
-	printf("****       group XXX NNN <---> 向讨论组XXX群发NNN     ****\n");
-	printf("****      add friend XXX <---> 添加好友XXX            ****\n");
-	printf("****   accept friend XXX <---> 接受XXX的好友请求      ****\n");
-	printf("****      del friend XXX <---> 删除好友XXX            ****\n");	
-	printf("****       add group XXX <---> 创建讨论组XXX          ****\n");
-	printf("****       del group XXX <---> 退出讨论组XXX          ****\n");
-	printf("****     look friend all <---> 查看在线好友           ****\n");
-	printf("****      look group all <---> 查看所有的讨论组       ****\n");
-	printf("****        file XXX NNN <---> 向XXX发送文件NNN        ****\n");
-	printf("****       look group me <---> 查看与自己有关的讨论组 ****\n");
-	printf("****                quit <---> 退出                ****\n");	
-	printf("**********************************************************\n");	
+	printf("************************************************\n");
+	printf("****    /@call XXX <---> 锁定好友XXX私聊      ****\n");
+	printf("****    /@add  XXX <---> 添加好友XXX         ****\n");
+	printf("****    /@del  XXX <---> 删除好友XXX         ****\n");
+	printf("****    /@apt  XXX <---> 接受XXX的好友请求    ****\n");
+	printf("****    /@look all <---> 查看好友及状态       ****\n");
+	printf("****    /#call XXX <---> 锁定群组XXX群聊     ****\n");	
+	printf("****    /#look all <---> 查看讨论组及状态       ****\n");
+	printf("****    /#add  XXX <---> 创建讨论组XXX       ****\n");
+	printf("****    /#del  XXX <---> 退出讨论组XXX       ****\n");
+	printf("****    /$send X N <---> 向X发送文件NN       ****\n");
+	printf("****    /$apt  X N <---> 接受X的文件请求      ****\n");
+	printf("****    /quit      <---> 退出               ****\n");	
+
+	printf("************************************************\n");	
 }
 

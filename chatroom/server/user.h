@@ -49,6 +49,7 @@ typedef struct News
 		grp_t grp;
 		char file_send[20];
 		char file_recv[20];
+		int file_num;
 		struct stat file;
 }new_t;
 

@@ -48,7 +48,6 @@ int save_log(char test[])
 int find_user_id(char name[], user_t *buf)
 {
     int fd;
-
     fd = open(USER_FILE, O_RDONLY | O_CREAT, 0666);
 
 
